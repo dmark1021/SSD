@@ -1,0 +1,15 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: SSD
+Bundle-SymbolicName: SSD;singleton:=true
+Bundle-Version: 1.0.0.qualifier
+Bundle-Activator: ssd.Activator
+Require-Bundle: org.eclipse.ui,
+ org.eclipse.core.runtime,
+ org.eclipse.core.resources,
+ org.eclipse.jdt.core,
+ org.eclipse.ui.editors
+Bundle-RequiredExecutionEnvironment: JavaSE-1.8
+Bundle-ActivationPolicy: lazy
+Import-Package: org.eclipse.jdt.internal.corext.util,
+ org.eclipse.jdt.internal.ui.text.correction
