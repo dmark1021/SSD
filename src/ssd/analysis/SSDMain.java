@@ -2,37 +2,42 @@ package ssd.analysis;
 
 import ssd.Activator;
 import ssd.ASTVisitor.ASTNodeAnnotationVisitor;
-import ssd.ASTVisitor.runMethodVisitor;
+import ssd.ASTVisitor.MethodVisitor;
 import ssd.ast.ASTBuilder;
-import ssd.ast.VarDecVisitor;
 
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
+
 import org.eclipse.jdt.core.ICompilationUnit;
-import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
-import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.search.IJavaSearchScope;
 import org.eclipse.jdt.core.search.SearchEngine;
+/**
+ * This is the main class. All analysis will be done here
+ * @author Obaida
+ *
+ */
 public class SSDMain {
 IJavaProject project;
 IPackageFragment[] packages=null;
 ArrayList<IPackageFragment> userpackages=new ArrayList<IPackageFragment>();
-private ArrayList<ASTNode> annotatedNodes=new ArrayList<ASTNode>();
-private ArrayList<String> varKeys=new ArrayList<String>();
+private Set<ASTNode> annotatedNodes=new HashSet<ASTNode>();
+private Set<String> varKeys=new HashSet<String>();
 private IMethod doGetMethod;
 private IMethod doPostMethod;
+public BitSet cacheforGet=new BitSet(3);
+public BitSet cacheforPost=new BitSet(3);
 
 long startMem;
 long startTime;
@@ -42,7 +47,7 @@ public SSDMain(){
 	this.project=Activator.getProject();
 }
 
-private void initializeStaticVars() {
+private void clearStaticVars() {
 	annotatedNodes.clear();
 	varKeys.clear();
 	
@@ -54,6 +59,7 @@ public void runStartingAnalysis() {
 	//check if project is set
 	if(project==null) {
 		System.out.println("Java project is not set");
+		return;
 		
 	}
 	else {
@@ -66,6 +72,8 @@ public void runStartingAnalysis() {
 		}
 		//will set the main IMethod
 	}
+	getdoGetMethod();
+	getdoPostMethod();
 	runAnalysis();
 	System.out.println("starting analysis complete");
 }
@@ -93,16 +101,48 @@ if(cunits.isEmpty()){
 	System.out.println("No compilation unit found. Abort analyis");
 	return;
 }
+//clean static vars if there is any residue from previous run
+clearStaticVars();
 //will set annotatedNodes and varkeys
-
 getSensitiveVars();
-getdoGetMethod();
-
-	System.out.println("complete");
-	endingMemAndTime();
+if(varKeys.isEmpty()){
+	System.out.println("No sensitive data in the program, abort analysis");
+	return;
 }
 
+//will visit doGet and all methods called by doGet
+if(doGetMethod!=null){
+	visitMehtods(doGetMethod);
+}
+//will visit doPost and all methods called by doPost
+if(doPostMethod!=null){
+	visitMehtods(doPostMethod);
+}
+System.out.println("complete");
+endingMemAndTime();
+}
 
+private void visitMehtods(IMethod methodtovisit){
+	LinkedList<IMethod>methodsToVisit=new LinkedList<IMethod>();
+	methodsToVisit.add(methodtovisit);
+	
+	IMethod method;
+	while(!methodsToVisit.isEmpty()){
+	method=methodsToVisit.remove();
+	final String key = method.getKey();
+//will send varaccess information too, because same var need to be checked for same thread.
+	 MethodVisitor methodvisitor=new MethodVisitor();
+//	 create AST using astbuilder then accept the visitor for checking run method
+	 CompilationUnit methodCU=ASTBuilder.getASTBuilder().parse(method.getCompilationUnit());
+	 ASTNode methodnode=methodCU.findDeclaringNode(key);
+		methodnode.accept(methodvisitor);
+		Set<IMethod> calledmethods=methodvisitor.getCalledmethods();
+		if(calledmethods!=null) {
+		methodsToVisit.addAll(calledmethods);
+		}
+	}
+	
+}
 
 
 public void setUserpackage() throws JavaModelException{
@@ -120,11 +160,11 @@ public void setUserpackage() throws JavaModelException{
 
 
 private void getSensitiveVars(){
-	ArrayList<ASTNode> annnode;
+	Set<ASTNode> annnode;
 	for(Map.Entry<ICompilationUnit,CompilationUnit> entry:cunits.entrySet()){
 		CompilationUnit cu=entry.getValue();
 		ICompilationUnit icu=entry.getKey();
-		ASTNodeAnnotationVisitor annvisitor=new ASTNodeAnnotationVisitor();
+		ASTNodeAnnotationVisitor annvisitor=new ASTNodeAnnotationVisitor(annotatedNodes,varKeys);
 		cu.accept(annvisitor);
 		annnode=annvisitor.getAnnotatedNodes();
 		if(!annnode.isEmpty()){
@@ -146,12 +186,18 @@ public void getdoGetMethod(){
 	
 }
 
+public void getdoPostMethod(){
+	String pattern="doPost(HttpServletRequest, HttpServletResponse) void";
+	IPackageFragment[] userpackagearray=new IPackageFragment[userpackages.size()];
+	userpackages.toArray(userpackagearray);
+	IJavaSearchScope scope=SearchEngine.createJavaSearchScope(userpackagearray, false);
+	MethodSearchEngine methodsearch=new MethodSearchEngine();
+	this.doPostMethod=methodsearch.searchMethods(scope,pattern);
+	System.out.println(doPostMethod);
+	
+}
 
-
-
-
-
-//currently not using this method. In future may use again
+//Will get all the ASTs and put it in cunits
 public void getAST() throws JavaModelException{
 	 this.packages=project.getPackageFragments();
 

@@ -43,32 +43,14 @@ import org.eclipse.jdt.internal.ui.text.correction.ASTResolving;
  * @author Obaida
  *
  */
-public class runMethodVisitor extends ASTVisitor {
-Map<String, Integer> varAccess=new HashMap<String, Integer>();
-Map<String, ASTNode> varNode=new HashMap<String, ASTNode>();
+public class MethodVisitor extends ASTVisitor {
 Set<IMethod> calledmethods= new HashSet<IMethod>();
-
-
-IMethod method;
-IResource resource;
-int read=0;
-int write=1;
-String threadname;
-
-	public runMethodVisitor(String threadname,IMethod method,Map<String, Integer> varAccess) {
-	this.threadname =threadname;
-	this.method=method;
-	if(varAccess!=null) {
-	this.varAccess=varAccess;
-	}
-	this.resource=method.getResource();
+	public MethodVisitor() {
 }
 	@Override
 	public boolean visit(Assignment node) {
 		Expression leftside=node.getLeftHandSide();
-		resolveExpression(leftside, write, node);
 		Expression rightside=node.getRightHandSide();
-		resolveExpression(rightside, read,node);
 		// TODO Auto-generated method stub
 		return super.visit(node);
 	}
@@ -83,21 +65,18 @@ String threadname;
 		// TODO Auto-generated method stub
 		Expression initializer=node.getInitializer();
 		if(initializer!=null) {
-			resolveExpression(initializer, read, node);
 		}
 		return super.visit(node);
 	}
 	@Override
 	public boolean visit(PostfixExpression node) {
 		Expression operand=node.getOperand();
-		resolveExpression(operand, write, node);
 		// TODO Auto-generated method stub
 		return super.visit(node);
 	}
 	@Override
 	public boolean visit(PrefixExpression node) {
 		Expression operand=node.getOperand();
-		resolveExpression(operand, write,node);
 		// TODO Auto-generated method stub
 		return super.visit(node);
 	}
@@ -122,8 +101,7 @@ String threadname;
 			if(arguments!=null) {
 				Iterator<Expression> it=arguments.iterator();
 				while(it.hasNext()) {
-					//arguments can be infixexpression, handled in resolveExpression method
-					resolveExpression(it.next(), read, node);
+					//option for handling library calls
 				}
 			}
 			
@@ -139,7 +117,6 @@ String threadname;
  */
 @Override
 public boolean visit(InfixExpression node) {
-	resolveExpression(node, read, node);
 	// TODO Auto-generated method stub
 	return super.visit(node);
 }
@@ -165,7 +142,7 @@ public boolean visit(ClassInstanceCreation node) {
 		if(arguments!=null) {
 			Iterator<Expression> it=arguments.iterator();
 			while(it.hasNext()) {
-				resolveExpression(it.next(), read, node);
+				//option for handling library calls
 			}
 		}
 		
@@ -174,14 +151,6 @@ public boolean visit(ClassInstanceCreation node) {
 	return super.visit(node);
 }
 
-
-	public Map<String, Integer> getVarAcess() {
-		return varAccess;
-	}
-	
-	public Map<String, ASTNode> getVarNode() {
-		return varNode;
-	}
 	/**
 	 * @return the calledmethods
 	 */
@@ -189,71 +158,6 @@ public boolean visit(ClassInstanceCreation node) {
 		return calledmethods;
 	}
 	
-	private void resolveExpression(Expression exp, int accesstype, ASTNode node) {
-		if(exp instanceof org.eclipse.jdt.core.dom.NumberLiteral || exp instanceof StringLiteral) {
-			return;
-		}
-		/**
-		 * check if inside a synchronized statement
-		 */
-		
-		@SuppressWarnings("restriction")
-		ASTNode synchronizedparent=ASTResolving.findAncestor(node, ASTNode.SYNCHRONIZED_STATEMENT);
-		if(synchronizedparent!=null) {
-			return;
-		}
-		
-		/**
-		 * check if any expression is infix expression. Do recursive call
-		 * this is useful for arguments of library calls
-		 * any other infixexpression is not handled separately, directly send to here.
-		 */
-		if(exp instanceof InfixExpression) {
-			InfixExpression iexp=(InfixExpression) exp;
-			Expression leftoperand=iexp.getLeftOperand();
-			Expression rightoperand=iexp.getRightOperand();
-			resolveExpression(leftoperand, accesstype, node);
-			resolveExpression(rightoperand, accesstype, node);
-			if(iexp.hasExtendedOperands()) {
-				List<Expression> list=iexp.extendedOperands();
-				Iterator<Expression> it=list.iterator();
-				while(it.hasNext()) {
-					resolveExpression(it.next(), accesstype, node);
-					
-				}
-			}
-			
-		}
-		//handle array access
-		if(exp instanceof ArrayAccess) {
-			exp=((ArrayAccess) exp).getArray();
-		}
-		//QualifiedName is used to find variable binding and variable declaration
-		if(exp instanceof QualifiedName || exp instanceof SimpleName) {
-		IBinding ib=((Name) exp).resolveBinding();
-		if(ib==null) {
-			System.out.println("cannto resolve binding for"+exp.toString());
-			return;
-		}
-		int modifier=ib.getModifiers();
-		//check if the field has static modifier, check if the binding is variable
-		if(((modifier & Modifier.STATIC)==Modifier.STATIC) && (ib.getKind()==IBinding.VARIABLE)){
-			IVariableBinding vb=(IVariableBinding)ib;
-			IVariableBinding vbDec=vb.getVariableDeclaration();
-//			String classname=vb.getDeclaringClass().getQualifiedName();
-//			String varname=vb.getName();
-//			varname=classname+"."+varname;
-			//key is unique for each variable in the project
-			String varname=vbDec.getKey();
-			int pos=exp.getStartPosition();
-			if(!varAccess.isEmpty() && varAccess.containsKey(varname) && varAccess.get(varname)==write) {return;}
-			else {
-				varAccess.put(varname, accesstype);
-				varNode.put(varname, node);
-				
-			}
-		}}
-	}
 	
 
 	
