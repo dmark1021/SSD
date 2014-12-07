@@ -8,8 +8,10 @@ import java.util.Map;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IMarker;
+import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.IJavaElement;
+import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.internal.ui.text.correction.ASTResolving;
@@ -59,6 +61,7 @@ public class SSDMarkerUtil {
 
 		return marker;
 	}
+
 	public static void clearStaleMarkers(ArrayList<IMarker> markers) {
 		try {
 			for (IMarker marker : markers) {

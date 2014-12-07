@@ -32,6 +32,8 @@ import org.eclipse.jdt.core.dom.StringLiteral;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.internal.compiler.ast.NumberLiteral;
 import org.eclipse.jdt.internal.ui.text.correction.ASTResolving;
+
+import ssd.analysis.SSDMain;
 /**
  * Will visit every run method and every other method called inside
  * run method of a thread
@@ -45,7 +47,9 @@ import org.eclipse.jdt.internal.ui.text.correction.ASTResolving;
  */
 public class MethodVisitor extends ASTVisitor {
 Set<IMethod> calledmethods= new HashSet<IMethod>();
-	public MethodVisitor() {
+IMethod parentMethod;
+	public MethodVisitor(IMethod pmethod) {
+		this.parentMethod=pmethod;
 }
 	@Override
 	public boolean visit(Assignment node) {
@@ -97,12 +101,13 @@ Set<IMethod> calledmethods= new HashSet<IMethod>();
 		calledmethods.add(im);
 		}
 		else {
+			checkCache(node);
 			List<Expression> arguments=node.arguments();
 			if(arguments!=null) {
 				Iterator<Expression> it=arguments.iterator();
-				while(it.hasNext()) {
-					//option for handling library calls
-				}
+//				while(it.hasNext()) {
+//					//option for handling library calls
+//				}
 			}
 			
 		}
@@ -112,7 +117,55 @@ Set<IMethod> calledmethods= new HashSet<IMethod>();
 	
 	
 	
-	/* (non-Javadoc)
+	private void checkCache(MethodInvocation node) {
+		String parentMethodName=parentMethod.getElementName();
+		SimpleName methodname=node.getName();
+		String arg1s;
+		String arg2s;
+		if(methodname.toString().equals("setHeader")){
+			List<Expression> arguments=node.arguments();
+			if(arguments!=null && arguments.size()==2) {
+				Expression arg1=arguments.get(0);
+				Expression arg2=arguments.get(1);
+				if(arg1 instanceof StringLiteral && arg2 instanceof StringLiteral){
+				arg1s=((StringLiteral) arg1).getLiteralValue();
+				arg2s=((StringLiteral) arg2).getLiteralValue();
+				}
+				else{
+					return;
+				}
+				if(arg1s.equals("Cache-control") && arg2s.equals("no-cache,no-store,must-revalidate")){
+					if(parentMethodName.equals("doGet")){
+						SSDMain.cacheforGet.set(0, true);
+					}
+					else{
+						SSDMain.cacheforPost.set(0, true);
+					}
+				}
+				if(arg1s.equals("Pragma") && arg2s.equals("no-cache")){
+					if(parentMethodName.equals("doGet")){
+						SSDMain.cacheforGet.set(1, true);
+					}
+					else{
+						SSDMain.cacheforPost.set(1, true);
+					}
+				}
+				if(arg1s.equals("Expires") && Integer.parseInt(arg2s)<=0){
+					if(parentMethodName.equals("doGet")){
+						SSDMain.cacheforGet.set(2, true);
+					}
+					else{
+						SSDMain.cacheforPost.set(2, true);
+					}
+				}
+				
+
+			}
+			
+		}
+	
+}
+/* (non-Javadoc)
  * @see org.eclipse.jdt.core.dom.ASTVisitor#visit(org.eclipse.jdt.core.dom.InfixExpression)
  */
 @Override
