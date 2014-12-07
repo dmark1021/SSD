@@ -50,7 +50,8 @@ public class ASTNodeAnnotationVisitor extends ASTVisitor {
 
 @Override
 	public boolean visit(VariableDeclarationFragment node) {
-	String varKey;
+	String varKey=null;
+	boolean hasSensitiveAnnotation=false;
 	IBinding ib=node.getName().resolveBinding();
 	IAnnotationBinding[] iab=ib.getAnnotations();
 	if(iab.length!=0){
@@ -59,10 +60,23 @@ public class ASTNodeAnnotationVisitor extends ASTVisitor {
 				
 				IVariableBinding ivb=(IVariableBinding) ib;
 				IVariableBinding vbDec=ivb.getVariableDeclaration();
-				varKey=ivb.getKey();
+				varKey=vbDec.getKey();
 				annotatedNodes.add(node);
 				varKeys.add(varKey);
+				hasSensitiveAnnotation=true;
 			}
+			//check if initializer is sensitive
+
+		}
+	}
+	if(hasSensitiveAnnotation==false){
+		Expression exp=node.getInitializer();
+		if(isSensitive(exp)==true){
+			IVariableBinding ivb=(IVariableBinding) ib;
+			IVariableBinding vbDec=ivb.getVariableDeclaration();
+			varKey=vbDec.getKey();
+			annotatedNodes.add(node);
+			varKeys.add(varKey);
 		}
 	}
 		// TODO Auto-generated method stub

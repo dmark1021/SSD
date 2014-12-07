@@ -84,6 +84,7 @@ public void runStartingAnalysis() {
 	System.out.println("starting analysis complete");
 }
 public void runAnalysis() {
+	System.out.println("............start analysis........");
 	startingMemAndTime();
 	//clear residual marker from previous run
 	SSDMarkerUtil.clearStaleMarkers(SSDMarkers);
@@ -129,8 +130,10 @@ if(doPostMethod!=null){
 	checkCacheSettings(doPostMethod);
 }
 
-System.out.println("complete");
+
+System.out.println("list of sensitive variables"+varKeys.toString());
 endingMemAndTime();
+System.out.println("............complete........");
 }
 
 private void checkCacheSettings(IMethod method) {
@@ -225,7 +228,7 @@ private void getdoGetMethod(){
 	userpackages.toArray(userpackagearray);
 	IJavaSearchScope scope=SearchEngine.createJavaSearchScope(userpackagearray, false);
 	MethodSearchEngine methodsearch=new MethodSearchEngine();
-	this.doGetMethod=methodsearch.searchMethods(scope,pattern);
+	SSDMain.doGetMethod=methodsearch.searchMethods(scope,pattern);
 	System.out.println(doGetMethod);
 	
 }
@@ -236,7 +239,7 @@ private void getdoPostMethod(){
 	userpackages.toArray(userpackagearray);
 	IJavaSearchScope scope=SearchEngine.createJavaSearchScope(userpackagearray, false);
 	MethodSearchEngine methodsearch=new MethodSearchEngine();
-	this.doPostMethod=methodsearch.searchMethods(scope,pattern);
+	SSDMain.doPostMethod=methodsearch.searchMethods(scope,pattern);
 	System.out.println(doPostMethod);
 	
 }
