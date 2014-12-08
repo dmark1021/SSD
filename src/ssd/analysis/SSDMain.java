@@ -23,6 +23,7 @@ import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.search.IJavaSearchScope;
 import org.eclipse.jdt.core.search.SearchEngine;
 /**
@@ -41,6 +42,8 @@ private static IMethod doPostMethod;
 public static BitSet cacheforGet=new BitSet(3); //All bits are initialized to zero by default
 public static BitSet cacheforPost=new BitSet(3);//All bits are initialized to zero by default
 public static ArrayList<IMarker> SSDMarkers=new ArrayList<IMarker>();
+//will store those sensitive variables that are sent to PrintWriter, with their corresponding method 
+private Map<String,MethodInvocation> LeakingSensitiveVars=new HashMap<String,MethodInvocation>();
 
 long startMem;
 long startTime;
@@ -145,7 +148,7 @@ private void checkCacheSettings(IMethod method) {
 			msg="Caching is not disabled properly in doGet method";
 			System.out.println(msg);
 			methodNode=getASTNode(method);
-			marker=SSDMarkerUtil.addSSDMarker(null, msg, methodNode);
+			marker=SSDMarkerUtil.addSSDMarker(msg, methodNode);
 			SSDMarkers.add(marker);
 			
 		}
@@ -156,7 +159,7 @@ private void checkCacheSettings(IMethod method) {
 			msg="Caching is not disabled properly in doPost method";
 			System.out.println(msg);
 			methodNode=getASTNode(method);
-			marker=SSDMarkerUtil.addSSDMarker(null, msg, methodNode);
+			marker=SSDMarkerUtil.addSSDMarker(msg, methodNode);
 			SSDMarkers.add(marker);
 		}
 	}
@@ -217,9 +220,12 @@ private void getSensitiveVars(){
 		if(!annnode.isEmpty()){
 		annotatedNodes.addAll(annnode);
 		varKeys.addAll(annvisitor.getVarKeys());
+		
 		}
-	}
-	
+		if(annvisitor.getLeakingSensitiveVars()!=null){
+			LeakingSensitiveVars.putAll(annvisitor.getLeakingSensitiveVars());
+		}
+		}
 }
 
 private void getdoGetMethod(){

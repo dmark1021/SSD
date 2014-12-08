@@ -36,7 +36,7 @@ public class SSDMarkerUtil {
 
 		return marker;
 	}
-	public static IMarker addSSDMarker(String varname, String msg,
+	public static IMarker addSSDMarker(String msg,
 			ASTNode node) {
 
 		IMarker marker = null;

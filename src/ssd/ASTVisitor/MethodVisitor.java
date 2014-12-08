@@ -19,6 +19,7 @@ import org.eclipse.jdt.core.dom.ConstructorInvocation;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.MethodInvocation;
@@ -117,6 +118,7 @@ IMethod parentMethod;
 	
 	
 	
+
 	private void checkCache(MethodInvocation node) {
 		String parentMethodName=parentMethod.getElementName();
 		SimpleName methodname=node.getName();
