@@ -196,9 +196,7 @@ public boolean visit(ClassInstanceCreation node) {
 		List<Expression> arguments=node.arguments();
 		if(arguments!=null) {
 			Iterator<Expression> it=arguments.iterator();
-			while(it.hasNext()) {
-				//option for handling library calls
-			}
+
 		}
 		
 	}

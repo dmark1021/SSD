@@ -8,6 +8,7 @@ import ssd.marker.SSDMarkerUtil;
 
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -23,9 +24,11 @@ import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.search.IJavaSearchScope;
 import org.eclipse.jdt.core.search.SearchEngine;
+import org.eclipse.jdt.internal.ui.text.correction.ASTResolving;
 /**
  * This is the main class. All analysis will be done here
  * @author Obaida
@@ -42,8 +45,11 @@ private static IMethod doPostMethod;
 public static BitSet cacheforGet=new BitSet(3); //All bits are initialized to zero by default
 public static BitSet cacheforPost=new BitSet(3);//All bits are initialized to zero by default
 public static ArrayList<IMarker> SSDMarkers=new ArrayList<IMarker>();
+public static Map<MethodInvocation,MethodDeclaration> callFlowGraph=new HashMap<MethodInvocation,MethodDeclaration>();
 //will store those sensitive variables that are sent to PrintWriter, with their corresponding method 
 private Map<String,MethodInvocation> LeakingSensitiveVars=new HashMap<String,MethodInvocation>();
+private boolean isdoGetVulnerable=false;
+private boolean isdoPostVulnerable=false;
 
 long startMem;
 long startTime;
@@ -122,21 +128,43 @@ if(varKeys.isEmpty()){
 	return;
 }
 
+//before visiting doGet and doPost, check do we really need to visit.
+//that is,check if there is any sensitive data leaking in those methods
+initialDataLeakingCheck();
 //will visit doGet and all methods called by doGet
 if(doGetMethod!=null){
 	visitMehtods(doGetMethod);
-	checkCacheSettings(doGetMethod);
+	if(isdoGetVulnerable){
+		checkCacheSettings(doGetMethod);
+	}
 }
 //will visit doPost and all methods called by doPost
 if(doPostMethod!=null){
 	visitMehtods(doPostMethod);
-	checkCacheSettings(doPostMethod);
+	if(isdoPostVulnerable){
+		checkCacheSettings(doPostMethod);
+	}
 }
 
 
 System.out.println("list of sensitive variables"+varKeys.toString());
 endingMemAndTime();
 System.out.println("............complete........");
+}
+
+private void initialDataLeakingCheck() {
+	Collection<MethodInvocation> vulnerableMethods=LeakingSensitiveVars.values();
+	for(MethodInvocation node:vulnerableMethods){
+		MethodDeclaration root=(MethodDeclaration) ASTResolving.findAncestor(node, ASTNode.METHOD_DECLARATION);
+		String s=root.getName().getIdentifier();
+		if(root.getName().toString().equals("doGet")){
+			isdoGetVulnerable=true;
+		}
+		if(root.getName().toString().equals("doPost")){
+			isdoPostVulnerable=true;
+		}
+	}
+	
 }
 
 private void checkCacheSettings(IMethod method) {

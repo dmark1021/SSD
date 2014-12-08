@@ -23,6 +23,7 @@ import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.MarkerAnnotation;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.Name;
@@ -31,6 +32,7 @@ import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.StringLiteral;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
+import org.eclipse.jdt.internal.ui.text.correction.ASTResolving;
 
 import ssd.analysis.SSDMain;
 import ssd.marker.SSDMarkerUtil;
@@ -124,6 +126,8 @@ public boolean visit(Assignment node) {
 @Override
 public boolean visit(MethodInvocation node) {
 	getSensitiveDataWrite(node);
+	MethodDeclaration md=(MethodDeclaration) ASTResolving.findAncestor(node, ASTNode.METHOD_DECLARATION);
+	SSDMain.callFlowGraph.put(node, md);
 	return super.visit(node);
 }
 
