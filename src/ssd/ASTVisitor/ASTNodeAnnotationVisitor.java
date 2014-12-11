@@ -67,43 +67,93 @@ public class ASTNodeAnnotationVisitor extends ASTVisitor {
 @Override
 	public boolean visit(VariableDeclarationFragment node) {
 	String varKey=null;
+	boolean sensitiveMethod=false;
 	boolean hasSensitiveAnnotation=false;
 	IBinding ib=node.getName().resolveBinding();
+	IVariableBinding ivb=(IVariableBinding) ib;
+	IVariableBinding vbDec=ivb.getVariableDeclaration();
+	varKey=vbDec.getKey();
 	IAnnotationBinding[] iab=ib.getAnnotations();
 	if(iab.length!=0){
 		for (int i = 0; i < iab.length; i++) {
 			if(iab[i].getName().equals("sensitive")){
-				
-				IVariableBinding ivb=(IVariableBinding) ib;
-				IVariableBinding vbDec=ivb.getVariableDeclaration();
-				varKey=vbDec.getKey();
 				annotatedNodes.add(node);
 				varKeys.add(varKey);
 				hasSensitiveAnnotation=true;
+				break;
 			}
 			//check if initializer is sensitive
 
 		}
 	}
+	
+	//if there is no sensitive annotation, check other conditions
 	if(hasSensitiveAnnotation==false){
 		Expression exp=node.getInitializer();
-		if(isSensitive(exp)==true){
-			IVariableBinding ivb=(IVariableBinding) ib;
-			IVariableBinding vbDec=ivb.getVariableDeclaration();
-			varKey=vbDec.getKey();
+		if(exp!=null){
+		int nodetype=exp.getNodeType();
+		if(nodetype!=ASTNode.METHOD_INVOCATION && isSensitive(exp)==true){
 			annotatedNodes.add(node);
 			varKeys.add(varKey);
 		}
+		else if(nodetype==ASTNode.METHOD_INVOCATION){
+			MethodInvocation mi=(MethodInvocation) exp;
+			sensitiveMethod=isSensitiveMethod(mi);
+			if(sensitiveMethod){
+				annotatedNodes.add(node);
+				varKeys.add(varKey);}
+		}
 	}
-		// TODO Auto-generated method stub
+	}
+	
+
+	
 		return super.visit(node);
 	}
+private boolean isSensitiveMethod(MethodInvocation mi) {
+	boolean sensitive=false;
+	Expression exp=mi.getExpression();
+	if(exp instanceof SimpleName){
+		SimpleName name=(SimpleName) exp;
+		IBinding binding=name.resolveBinding();
+		int kind=binding.getKind();
+		List<Expression> arguments=mi.arguments();
+		if(kind==IBinding.VARIABLE && arguments.isEmpty()){
+			sensitive=isSensitive(exp);
+			
+		}
+		
+		else if(!arguments.isEmpty() && kind==IBinding.TYPE){
+			ITypeBinding tb=(ITypeBinding) binding;
+			String typename=tb.getQualifiedName();
+			if(!typename.equals("javax.crypto.Cipher")){
+			Iterator<Expression> it=arguments.iterator();
+			while(it.hasNext()) {
+				Expression arg=it.next();
+				if(isSensitive(arg)){
+					sensitive=true;
+					break;
+				}
+
+				}
+		}
+
+				
+
+			}
+			
+		}
+	
+	return sensitive;
+}
+
 @Override
 public boolean visit(Assignment node) {
 	Expression leftside=node.getLeftHandSide();
 	Expression rightside=node.getRightHandSide();
+	String varkey;
 	if(isSensitive(rightside)==true){
-		String varkey=getVarKeyFromExpression(leftside);
+		varkey=getVarKeyFromExpression(leftside);
 		if(varkey!=null){
 		annotatedNodes.add(node);
 		varKeys.add(varkey);
@@ -117,6 +167,20 @@ public boolean visit(Assignment node) {
 			
 		}
 	}
+	else if(rightside!=null){
+		int nodetype=rightside.getNodeType();
+
+		if(nodetype==ASTNode.METHOD_INVOCATION){
+			MethodInvocation mi=(MethodInvocation) rightside;
+			boolean sensitiveMethod=isSensitiveMethod(mi);
+			if(sensitiveMethod){
+			varkey=getVarKeyFromExpression(leftside);
+			annotatedNodes.add(node);
+			varKeys.add(varkey);
+		}
+		}
+	}
+		
 	// TODO Auto-generated method stub
 	return super.visit(node);
 }
@@ -147,6 +211,11 @@ private void getSensitiveDataWrite(MethodInvocation node) {
 				for(String varname:sensitiveVars){
 					this.LeakingSensitiveVars.put(varname, node);
 				}
+				String msg="Sensitive data exposed!!";
+				System.out.println(msg);
+				IMarker marker=SSDMarkerUtil.addSSDMarker(msg, node);
+				SSDMain.SSDMarkers.add(marker);
+				
 				}
 				
 
